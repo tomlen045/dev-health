@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🩺 程序员身体年龄计算器</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0e1a;color:#e8ecf7;font-family:-apple-system,'PingFang SC',sans-serif;min-height:100vh}
+.wrap{max-width:480px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:24px;text-align:center;margin:8px 0 2px}
+.sub{text-align:center;color:#7c86a8;font-size:13px;margin-bottom:24px}
+.card{background:#131a2e;border:1px solid #232c4a;border-radius:18px;padding:22px 20px;margin-bottom:14px}
+.q{font-size:16px;font-weight:bold;margin-bottom:14px;color:#fff}
+.opt{display:block;width:100%;background:#1d2742;border:2px solid #2c3a63;color:#e8ecf7;border-radius:12px;padding:13px 16px;font-size:15px;margin-bottom:9px;cursor:pointer;text-align:left;transition:.15s}
+.opt:active{background:#2c3a63;border-color:#4f7cff}
+.bar{height:6px;background:#1d2742;border-radius:99px;margin-bottom:18px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#4f7cff,#9b5cff);border-radius:99px;transition:.3s}
+.btn{width:100%;background:linear-gradient(90deg,#4f7cff,#9b5cff);color:#fff;border:none;border-radius:99px;padding:15px;font-size:17px;font-weight:900;cursor:pointer;margin-top:12px}
+.big{text-align:center;font-size:64px;font-weight:900;margin:8px 0}
+.label{text-align:center;color:#7c86a8;font-size:14px}
+.row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #1d2742;font-size:14px}
+.row b{color:#4f7cff}
+.risk{border-radius:12px;padding:18px;margin:16px 0;text-align:center}
+.r-low{background:rgba(63,185,80,.1);border:1px solid #3fb950}
+.r-mid{background:rgba(255,209,102,.1);border:1px solid #ffd166}
+.r-high{background:rgba(248,81,73,.1);border:1px solid #f85149}
+.r-low .t{color:#3fb950}.r-mid .t{color:#ffd166}.r-high .t{color:#f85149}
+.tip{font-size:13px;color:#9aa6cc;line-height:1.8;margin-top:8px;text-align:left}
+.foot{text-align:center;color:#5b6588;font-size:11px;margin-top:20px}
+canvas{max-width:100%;border-radius:16px;margin-top:14px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<canvas id="cd" width="1080" height="1440" style="display:none"></canvas>
+<script>
+var QS=[
+ {q:"你每天坐多久（工作+通勤+娱乐）",o:[[8,"8小时以下"],[10,"8-10小时"],[12,"10-14小时"],[14,"14小时以上（起来喝水都算奢侈）"]]},
+ {q:"你凌晨12点后还在写代码或刷手机的频率",o:[[0,"从不，11点前睡觉"],[2,"偶尔（每周1-2次）"],[5,"经常（每周3-5次）"],[8,"天天，凌晨1点是标配"]]},
+ {q:"你一周运动几次（每次30分钟以上）",o:[[0,"0次，走路上楼就是运动"],[3,"1-2次"],[6,"3-4次"],[10,"5次以上，自律狂魔"]]},
+ {q:"你每天喝多少咖啡或能量饮料",o:[[0,"不喝"],[2,"1杯"],[5,"2-3杯"],[8,"4杯以上，不喝会死"]]},
+ {q:"你的一日三餐",o:[[0,"规律，自己做饭为主"],[4,"偶尔外卖，基本规律"],[7,"天天外卖或食堂重油"],[10,"经常忘记吃饭或暴饮暴食"]]},
+ {q:"你连续盯着屏幕的最长时间",o:[[2,"1小时就休息"],[5,"2-3小时"],[8,"4-6小时"],[12,"6小时以上不起来"]]},
+ {q:"你的体检报告",o:[[0,"正常，没什么问题"],[4,"有点小问题（脂肪肝倾向或尿酸高）"],[8,"有明确异常（结石或血糖高或颈椎病）"],[12,"不敢体检，怕看到结果"]]},
+ {q:"你一周有几天感觉精力充沛",o:[[8,"6-7天，活力满满"],[5,"4-5天"],[2,"2-3天"],[0,"几乎没有，天天累"]]},
+ {q:"你的颈椎腰手腕有没有不适",o:[[0,"没有任何不适"],[4,"偶尔酸但休息就好"],[7,"经常疼，影响工作"],[10,"已有确诊的问题（椎间盘或腱鞘炎）"]]},
+ {q:"你的情绪状态",o:[[0,"稳定，积极"],[3,"偶尔焦虑"],[6,"经常烦躁或低落"],[9,"持续emo，对什么都提不起劲"]]}
+];
+var TIPS={
+ ok:"你的身体比大部分同行都健康，保持住，别忘了定期体检。",
+ warn:"你的身体正在悄悄透支。建议每天多走30分钟，12点前放下手机，每周至少运动2次。",
+ bad:"你的身体正在为你付出的代价。本周约一次全面体检，每天11点前睡觉，每小时起身5分钟。"
+};
+var cur=0,scores=[],app=document.getElementById("app");
+
+function home(){
+ var h="<h1>🩺 程序员身体年龄计算器</h1><p class='sub'>你的身体，还撑得住几年的996？</p>";
+ h+="<div class='card'><p class='q'>久坐8小时 · 熬夜写代码 · 咖啡当水喝 · 外卖当饭吃</p>";
+ h+="<p style='font-size:14px;color:#9aa6cc;line-height:1.9;margin:10px 0'>10道题，60秒，测出你的<strong style='color:#f85149'>身体年龄</strong>。看看它比你的实际年龄大了多少岁。</p>";
+ h+="<button class='btn' onclick='start()'>🩺 开始检测</button></div>";
+ h+="<p class='foot'>数据仅本地计算 · 不上传任何信息 · 小薅薅出品</p>";
+ app.innerHTML=h;
+}
+function start(){cur=0;scores=[];render();}
+function render(){
+ var q=QS[cur];
+ var h="<div class='bar'><i style='width:"+(cur/QS.length*100)+"%'></i></div><div class='card'><p class='q'>"+(cur+1)+". "+q.q+"</p>";
+ for(var i=0;i<q.o.length;i++){h+="<button class='opt' onclick='pick("+q.o[i][0]+")'>"+q.o[i][1]+"</button>";}
+ h+="</div>";app.innerHTML=h;
+}
+function pick(score){scores.push(score);cur++;if(cur<QS.length){render();}else{showResult();}}
+function showResult(){
+ var total=0;for(var i=0;i<scores.length;i++)total+=scores[i];
+ var pct=Math.max(0,Math.round(100-total/87*100));
+ var age=Math.round(20+(100-pct)/100*40);
+ var diff=age-25;
+ var grade,color,cls,tip;
+ if(pct>=80){grade="🛡 身体状态优秀";color="#3fb950";cls="r-low";tip=TIPS.ok;}
+ else if(pct>=60){grade="⚠️ 开始透支";color="#ffd166";cls="r-mid";tip=TIPS.warn;}
+ else if(pct>=40){grade="🚨 明显透支";color="#f85149";cls="r-high";tip=TIPS.bad;}
+ else{grade="🚨 严重预警";color="#f85149";cls="r-high";tip="你的身体年龄远超实际年龄。立即预约全面体检，调整作息。你的健康比任何deadline都重要。";}
+ var h="<p class='label'>你的身体年龄</p><div class='big' style='color:"+color+"'>"+age+" 岁</div>";
+ h+="<p class='label'>实际年龄约 25 岁 · <b style='color:"+(diff>0?"#f85149":"#3fb950")+"'>"+(diff>0?"身体老了 "+diff+" 岁":"比实际年轻 "+Math.abs(diff)+" 岁")+"</b></p>";
+ h+="<div class='"+cls+"'><p class='t' style='font-size:18px;font-weight:bold'>"+grade+"</p><p class='tip'>"+tip+"</p></div>";
+ h+="<div class='card'><p style='font-size:14px;font-weight:bold;color:#fff;margin-bottom:8px'>📊 各项详情</p>";
+ for(var i=0;i<QS.length;i++){
+  var qs=QS[i].q.length>16?QS[i].q.slice(0,16)+"…":QS[i].q;
+  var sc=scores[i];var sc_c=sc>=7?"#f85149":sc>=4?"#ffd166":"#3fb950";var sc_l=sc>=7?"高危":sc>=4?"注意":"良好";
+  h+="<div class='row'><span>"+qs+"</span><b style='color:"+sc_c+"'>"+sc_l+"</b></div>";
+ }
+ h+="</div>";
+ h+="<button class='btn' onclick='drawCard("+age+","+pct+")'>🎴 生成分享卡片</button>";
+ h+="<button class='btn' style='background:#1d2742' onclick='home()'>🔄 重新测试</button>";
+ h+="<p class='foot'>仅作参考，不构成医疗建议 · 数据仅本地计算 · 小薅薅出品</p>";
+ app.innerHTML=h;window.scrollTo(0,0);
+}
+function drawCard(age,pct){
+ var c=document.getElementById("cd");var x=c.getContext("2d");
+ x.fillStyle="#0b0e1a";x.fillRect(0,0,1080,1440);x.textAlign="center";
+ x.fillStyle="#4f7cff";x.font="bold 36px sans-serif";x.fillText("🩺 程序员身体年龄计算器",540,90);
+ x.fillStyle="#7c86a8";x.font="24px sans-serif";x.fillText("实际年龄约 25 岁",540,160);
+ x.font="900 180px sans-serif";x.fillStyle=pct>=60?"#3fb950":pct>=40?"#ffd166":"#f85149";
+ x.fillText(age+"",540,420);x.fillStyle="#7c86a8";x.font="28px sans-serif";x.fillText("岁 · 身体年龄",540,470);
+ x.fillStyle="#8b949e";x.font="22px sans-serif";x.fillText("你的身体比任何 deadline 都重要",540,1380);
+ x.fillStyle="#58a6ff";x.font="bold 26px sans-serif";x.fillText("🔍 搜「小薅薅」· 关心每一个写代码的你",540,1340);
+ c.style.display="block";var a=document.createElement("a");a.download="dev-health.png";a.href=c.toDataURL();a.click();
+}
+home();
+</script>
+</body>
+</html>
